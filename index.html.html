@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>បញ្ជីកត់ត្រាចំណងដៃ - Wedding List</title>
+    <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Moul&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #00a8cc;
+            --bg-color: #f0f2f5;
+            --white: #ffffff;
+            --shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Battambang', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .main-container { max-width: 1300px; margin: 0 auto; }
+        
+        .header-title { text-align: center; margin-bottom: 30px; }
+        h1 { font-family: 'Moul', serif; color: var(--primary-color); font-size: 28px; }
+
+        /* ផ្នែក Form បញ្ចូល */
+        .input-card {
+            background: var(--white);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+            border-top: 5px solid var(--primary-color);
+        }
+
+        .input-group { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #555; }
+        input, select { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Battambang', sans-serif; }
+
+        /* ផ្នែកប៊ូតុង */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: white;
+            transition: 0.3s;
+            font-family: 'Battambang', sans-serif;
+        }
+
+        .btn-add { background: #28a745; height: 46px; font-size: 16px; }
+        .btn-add:hover { background: #218838; }
+
+        .btn-excel { background: #107c41; } 
+        .btn-jpg { background: #ff9800; }
+        .btn-pdf { background: #db4437; }
+        .btn-print { background: #607d8b; }
+        .btn-clear { background: #dc3545; }
+
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        /* Layout */
+        .dashboard-layout { display: flex; gap: 25px; align-items: flex-start; }
+        .table-section { flex: 3; background: var(--white); border-radius: 15px; box-shadow: var(--shadow); overflow: hidden; padding: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        thead { background-color: #0056b3; color: white; }
+        th { padding: 15px; font-weight: normal; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; }
+        tbody tr:nth-child(even) { background-color: #f9f9f9; }
+
+        .summary-section { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 15px; }
+        .summary-card { background: white; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; text-align: center; }
+        .summary-header { color: white; padding: 15px; font-weight: bold; }
+        .summary-value { padding: 20px; font-size: 28px; font-weight: bold; }
+
+        .currency-riel { color: #d32f2f; }
+        .currency-dollar { color: #2e7d32; }
+
+        /* Style សម្រាប់ពេល Print */
+        @media print {
+            .input-card, .action-buttons, .btn-clear, .btn-delete {
+                display: none !important;
+            }
+            .main-container { width: 100%; max-width: 100%; margin: 0; }
+            .dashboard-layout { display: block; }
+            .summary-section { 
+                flex-direction: row; 
+                margin-top: 20px; 
+                justify-content: space-between;
+                page-break-inside: avoid;
+            }
+            .summary-card { border: 1px solid #ddd; flex: 1; margin: 0 5px; }
+            body { background-color: white; -webkit-print-color-adjust: exact; }
+            .table-section { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container" id="contentToCapture">
+        <div class="header-title">
+            <h1><i class="fas fa-book"></i> បញ្ជីកត់ត្រាចំណងដៃ</h1>
+        </div>
+
+        <div class="input-card">
+            <div class="input-group">
+                <label><i class="fas fa-user"></i> អ្នកចូលរួមកម្មវិធីការ</label>
+                <input type="text" id="guestName" placeholder="ឈ្មោះអ្នកចូលរួម...">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-map-marker-alt"></i> មកពីភូមិ/ខេត្ត</label>
+                <input type="text" id="guestOrigin" placeholder="អាសយដ្ឋាន...">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-money-bill-wave"></i> ទឹកប្រាក់</label>
+                <input type="number" id="amount" placeholder="0.00">
+            </div>
+            <div class="input-group" style="flex: 0.5;">
+                <label><i class="fas fa-coins"></i> រូបិយប័ណ្ណ</label>
+                <select id="currency">
+                    <option value="រៀល">៛ រៀល</option>
+                    <option value="ដុល្លា">$ ដុល្លា</option>
+                </select>
+            </div>
+            <div class="input-group" style="flex: 0.2; justify-content: flex-end;">
+                <button class="btn-add" onclick="addEntry()">
+                    <i class="fas fa-plus-circle"></i> បញ្ចូល
+                </button>
+            </div>
+        </div>
+
+        <div class="input-card" style="padding: 15px; justify-content: space-between; align-items: center;">
+            <div class="action-buttons">
+                <button class="btn-excel" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Save Excel
+                </button>
+                <button class="btn-jpg" onclick="saveAsJPG()">
+                    <i class="fas fa-image"></i> Save JPG
+                </button>
+                <button class="btn-pdf" onclick="saveAsPDF()">
+                    <i class="fas fa-file-pdf"></i> Save PDF
+                </button>
+                <button class="btn-print" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+            <button class="btn-clear" onclick="clearAllData()" title="លុបទិន្នន័យទាំងអស់">
+                <i class="fas fa-trash-alt"></i> លុបទាំងអស់
+            </button>
+        </div>
+
+        <div class="dashboard-layout">
+            <div class="table-section">
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="50">ល.រ</th>
+                            <th style="text-align: left;">អ្នកចូលរួមកម្មវិធីការ</th>
+                            <th>មកពីភូមិ/ខេត្ត</th>
+                            <th>ទឹកប្រាក់</th>
+                            <th>ប្រភេទ</th>
+                            <th width="60" class="btn-delete">លុប</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="summary-section">
+                <div class="summary-card">
+                    <div class="summary-header" style="background: #007bff;">
+                        <i class="fas fa-users"></i> ភ្ញៀវចូលរួមសរុប
+                    </div>
+                    <div class="summary-value" id="totalGuests">0 នាក់</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-header" style="background: #d32f2f;">
+                        <i class="fas fa-money-bill"></i> សរុបប្រាក់រៀល
+                    </div>
+                    <div class="summary-value currency-riel" id="totalRiel">0 ៛</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-header" style="background: #2e7d32;">
+                        <i class="fas fa-dollar-sign"></i> សរុបប្រាក់ដុល្លា
+                    </div>
+                    <div class="summary-value currency-dollar" id="totalDollar">$ 0.00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let entries = [];
+
+        window.onload = function() {
+            const storedData = localStorage.getItem('weddingList_Data');
+            if (storedData) {
+                entries = JSON.parse(storedData);
+                renderTable();
+                updateSummary();
+            }
+        };
+
+        function addEntry() {
+            const nameIn = document.getElementById('guestName');
+            const originIn = document.getElementById('guestOrigin');
+            const amountIn = document.getElementById('amount');
+            const currencyIn = document.getElementById('currency');
+
+            if (nameIn.value.trim() === "" || amountIn.value === "") {
+                alert("សូមបំពេញឈ្មោះ និងទឹកប្រាក់!");
+                return;
+            }
+
+            const entry = {
+                id: Date.now(),
+                name: nameIn.value.trim(),
+                origin: originIn.value.trim() || "-",
+                amount: parseFloat(amountIn.value),
+                currency: currencyIn.value
+            };
+
+            entries.push(entry);
+            saveData();
+            renderTable();
+            updateSummary();
+            
+            nameIn.value = "";
+            originIn.value = "";
+            amountIn.value = "";
+            nameIn.focus();
+        }
+
+        function deleteEntry(id) {
+            if(confirm("តើអ្នកចង់លុបឈ្មោះនេះមែនទេ?")) {
+                entries = entries.filter(e => e.id !== id);
+                saveData();
+                renderTable();
+                updateSummary();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('weddingList_Data', JSON.stringify(entries));
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = "";
+            
+            [...entries].reverse().forEach((entry, index) => {
+                const tr = document.createElement('tr');
+                const moneySymbol = entry.currency === 'ដុល្លា' ? '$ ' : '';
+                const moneySuffix = entry.currency === 'រៀល' ? ' ៛' : '';
+                
+                tr.innerHTML = `
+                    <td>${entries.length - index}</td>
+                    <td style="text-align: left; font-weight: bold;">${entry.name}</td>
+                    <td>${entry.origin}</td>
+                    <td style="font-weight:bold; text-align: right; color: ${entry.currency === 'ដុល្លា' ? 'green' : 'red'}">
+                        ${moneySymbol}${entry.amount.toLocaleString()}${moneySuffix}
+                    </td>
+                    <td>${entry.currency}</td>
+                    <td class="btn-delete"><button onclick="deleteEntry(${entry.id})" style="background:none; border:none; color:red; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function getSummary() {
+            let sumRiel = 0, sumDollar = 0;
+            entries.forEach(e => {
+                if (e.currency === "រៀល") sumRiel += e.amount;
+                else sumDollar += e.amount;
+            });
+            return { count: entries.length, riel: sumRiel, dollar: sumDollar };
+        }
+
+        function updateSummary() {
+            const summary = getSummary();
+            document.getElementById('totalGuests').innerText = summary.count + " នាក់";
+            document.getElementById('totalRiel').innerText = summary.riel.toLocaleString() + " ៛";
+            document.getElementById('totalDollar').innerText = "$ " + summary.dollar.toLocaleString();
+        }
+
+        function clearAllData() {
+            if(confirm("ប្រយ័ត្ន! តើអ្នកពិតជាចង់លុបទិន្នន័យទាំងអស់មែនទេ?")) {
+                entries = [];
+                saveData();
+                renderTable();
+                updateSummary();
+            }
+        }
+
+        // --- មុខងារ Save Excel (Update ថ្មី) ---
+        function exportToExcel() {
+            if(entries.length === 0) {
+                alert("មិនមានទិន្នន័យសម្រាប់ Save ទេ!");
+                return;
+            }
+            
+            // ១. រៀបចំទិន្នន័យតារាង
+            let dataForExcel = entries.map((e, index) => ({
+                "ល.រ": index + 1,
+                "អ្នកចូលរួមកម្មវិធីការ": e.name,
+                "មកពីភូមិ/ខេត្ត": e.origin,
+                "ទឹកប្រាក់": e.amount,
+                "ប្រភេទ": e.currency
+            }));
+
+            // ២. ដាក់ចន្លោះមួយជួរ
+            dataForExcel.push({}); 
+
+            // ៣. បន្ថែមទិន្នន័យសរុបនៅខាងក្រោម
+            const summary = getSummary();
+            dataForExcel.push({ "អ្នកចូលរួមកម្មវិធីការ": "ភ្ញៀវចូលរួមសរុប", "មកពីភូមិ/ខេត្ត": summary.count + " នាក់" });
+            dataForExcel.push({ "អ្នកចូលរួមកម្មវិធីការ": "សរុបប្រាក់រៀល", "មកពីភូមិ/ខេត្ត": summary.riel.toLocaleString() + " ៛" });
+            dataForExcel.push({ "អ្នកចូលរួមកម្មវិធីការ": "សរុបប្រាក់ដុល្លា", "មកពីភូមិ/ខេត្ត": "$ " + summary.dollar.toLocaleString() });
+
+            // ៤. បង្កើត Sheet
+            const ws = XLSX.utils.json_to_sheet(dataForExcel);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "បញ្ជីចំណងដៃ");
+
+            XLSX.writeFile(wb, "បញ្ជីចំណងដៃ_Wedding.xlsx");
+        }
+
+        // --- មុខងារ Save JPG ---
+        function saveAsJPG() {
+            // លាក់ប៊ូតុងសិន មុននឹងថតរូប
+            document.querySelector('.action-buttons').style.display = 'none';
+            document.querySelector('.input-card').style.display = 'none';
+            document.querySelectorAll('.btn-delete').forEach(el => el.style.display = 'none');
+
+            html2canvas(document.body).then(canvas => {
+                let link = document.createElement('a');
+                link.download = 'wedding-list.jpg';
+                link.href = canvas.toDataURL("image/jpeg");
+                link.click();
+
+                // បង្ហាញប៊ូតុងមកវិញ
+                location.reload(); 
+            });
+        }
+
+        // --- មុខងារ Save PDF ---
+        function saveAsPDF() {
+            const { jsPDF } = window.jspdf;
+            
+            // លាក់ប៊ូតុងដែលមិនចាំបាច់
+            document.querySelector('.input-card').style.display = 'none';
+            document.querySelector('.action-buttons').style.display = 'none';
+            document.querySelectorAll('.btn-delete').forEach(el => el.style.display = 'none');
+
+            html2canvas(document.querySelector(".main-container")).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save("wedding-list.pdf");
+
+                // បង្ហាញប៊ូតុងមកវិញ
+                location.reload();
+            });
+        }
+
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') addEntry();
+        });
+    </script>
+</body>
+</html>
